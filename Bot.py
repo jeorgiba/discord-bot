@@ -12,7 +12,7 @@ load_dotenv()
 
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 CHANNEL_ID = int(os.getenv('CHANNEL_ID', 1396766554028511372))
-TIMEZONE = os.getenv('TIMEZONE', 'UTC')  # Game server timezone (1 hour behind Lisbon)
+TIMEZONE = os.getenv('TIMEZONE', 'Europe/Lisbon')  # Follow Lisbon time for notifications
 
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent for commands
@@ -20,17 +20,17 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 def get_nation_war_schedule():
     """
-    Returns Nation War based on scheduled times (5 minutes before):
-    Nation War: 1:55 AM, 4:55 AM, 7:55 AM, 10:55 AM, 1:55 PM, 4:55 PM, 7:55 PM, 10:55 PM
+    Returns Nation War based on scheduled times (5 minutes before) in Lisbon time:
+    Nation War: 1:55 AM, 4:55 AM, 7:55 AM, 10:55 AM, 1:55 PM, 4:55 PM, 7:55 PM, 10:55 PM (Lisbon time)
     """
-    # Get current time in the specified timezone
+    # Get current time in Lisbon timezone
     tz = pytz.timezone(TIMEZONE)
     now = datetime.now(tz)
     current_hour = now.hour
     current_minute = now.minute
 
-    # Nation War times: 5 minutes before 2, 5, 8, 11, 14, 17, 20, 23
-    # So at: 1:55, 4:55, 7:55, 10:55, 13:55, 16:55, 19:55, 22:55
+    # Nation War times: 5 minutes before 2, 5, 8, 11, 14, 17, 20, 23 (Lisbon time)
+    # So at: 1:55, 4:55, 7:55, 10:55, 13:55, 16:55, 19:55, 22:55 (Lisbon time)
     reminder_hours = [1, 4, 7, 10, 13, 16, 19, 22]
     
     if current_hour in reminder_hours and current_minute == 55:
@@ -127,50 +127,53 @@ async def check_schedule(ctx):
     tz = pytz.timezone(TIMEZONE)
     current_time = datetime.now(tz).strftime("%I:%M %p")
     
-    # Also show Lisbon time
-    lisbon_tz = pytz.timezone('Europe/Lisbon')
-    lisbon_time = datetime.now(lisbon_tz).strftime("%I:%M %p")
-    
     if event_type:
-        await ctx.send(f"📅 Next event: **{event_type}** at {event_time} (game time)")
+        await ctx.send(f"📅 Next event: **{event_type}** at {event_time} (Lisbon time)")
     else:
         await ctx.send(f"📅 No events scheduled right now.\n"
-                      f"Game server time: {current_time}\n"
-                      f"Your time (Lisbon): {lisbon_time}")
+                      f"Current time (Lisbon): {current_time}")
     
     # Show next reminder times
     reminder_times = ["1:55 AM", "4:55 AM", "7:55 AM", "10:55 AM", "1:55 PM", "4:55 PM", "7:55 PM", "10:55 PM"]
-    await ctx.send(f"🕐 Reminder times (game server time): {', '.join(reminder_times)}")
+    await ctx.send(f"🕐 Reminder times (Lisbon time): {', '.join(reminder_times)}")
 
 @bot.command(name='debug')
 async def debug_time(ctx):
     """Debug current time and schedule logic"""
-    # Get both UTC (game server) and Lisbon time
-    utc_now = datetime.now(pytz.UTC)
+    # Get Lisbon time and UTC time for comparison
     lisbon_tz = pytz.timezone('Europe/Lisbon')
-    lisbon_now = utc_now.astimezone(lisbon_tz)
-    game_tz = pytz.timezone(TIMEZONE)
-    game_now = utc_now.astimezone(game_tz)
+    lisbon_now = datetime.now(lisbon_tz)
+    utc_now = datetime.now(pytz.UTC)
     
-    current_hour = game_now.hour
-    current_minute = game_now.minute
+    current_hour = lisbon_now.hour
+    current_minute = lisbon_now.minute
     
     await ctx.send(f"🐛 **Debug Info:**\n"
-                  f"Your time (Lisbon): {lisbon_now.strftime('%H:%M')} (24h) / {lisbon_now.strftime('%I:%M %p')} (12h)\n"
-                  f"Game server time ({TIMEZONE}): {game_now.strftime('%H:%M')} (24h) / {game_now.strftime('%I:%M %p')} (12h)\n"
+                  f"Current time (Lisbon): {lisbon_now.strftime('%H:%M')} (24h) / {lisbon_now.strftime('%I:%M %p')} (12h)\n"
+                  f"UTC time: {utc_now.strftime('%H:%M')} (24h) / {utc_now.strftime('%I:%M %p')} (12h)\n"
                   f"Hour: {current_hour}, Minute: {current_minute}\n"
                   f"Is reminder hour: {current_hour in [1, 4, 7, 10, 13, 16, 19, 22]}\n"
-                  f"Is minute 55: {current_minute == 55}")
+                  f"Is minute 55: {current_minute == 55}\n"
+                  f"Is minute 59: {current_minute == 59}")
     
-    # Test what would happen in 5 minutes
-    test_time = game_now.replace(minute=55)
-    test_event, test_formatted = get_nation_war_schedule()
-    await ctx.send(f"If it were {test_time.strftime('%H:%M')} game time: Event = {test_event}, Time = {test_formatted}")
+    # Test what would happen at next reminder time
+    if current_hour in [1, 4, 7, 10, 13, 16, 19, 22]:
+        event_hour = (current_hour + 1) % 24
+        if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
+            if event_hour == 0:
+                formatted_time = "12:00 AM"
+            elif event_hour < 12:
+                formatted_time = f"{event_hour}:00 AM"
+            elif event_hour == 12:
+                formatted_time = "12:00 PM"
+            else:
+                formatted_time = f"{event_hour-12}:00 PM"
+            await ctx.send(f"Next Nation War event will be at {formatted_time} Lisbon time")
 
 @tasks.loop(minutes=1)
 async def hourly_message():
-    # Check at :55 (5-min warning) and :59 (1-min warning) of each hour
-    tz = pytz.timezone(TIMEZONE)
+    # Check at :55 (5-min warning) and :59 (1-min warning) of each hour in Lisbon time
+    tz = pytz.timezone(TIMEZONE)  # Europe/Lisbon
     now = datetime.now(tz)
     current_hour = now.hour
     current_minute = now.minute
@@ -179,7 +182,9 @@ async def hourly_message():
     if current_minute not in [55, 59]:
         return
     
-    # Check if this is a Nation War hour
+    # Check if this is a Nation War hour in Lisbon time
+    # Events at: 2, 5, 8, 11, 14, 17, 20, 23 (Lisbon time)
+    # So reminders at: 1, 4, 7, 10, 13, 16, 19, 22 (Lisbon time)
     reminder_hours = [1, 4, 7, 10, 13, 16, 19, 22]
     if current_hour not in reminder_hours:
         return
@@ -189,6 +194,7 @@ async def hourly_message():
         try:
             # Calculate the event time
             event_hour = (current_hour + 1) % 24
+            # Double-check this is a valid event hour
             if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
                 # Convert to 12-hour format
                 if event_hour == 0:
@@ -202,17 +208,21 @@ async def hourly_message():
                 
                 # Different messages for 5-min and 1-min warnings
                 if current_minute == 55:
-                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time}! 🚨"
-                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time}"
+                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time} (Lisbon time)! 🚨"
+                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time} Lisbon time"
                 else:  # current_minute == 59
-                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time}! Get ready! ⚠️"
-                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time}"
+                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time} (Lisbon time)! Get ready! ⚠️"
+                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time} Lisbon time"
                 
                 await channel.send(message)
                 current_time = now.strftime("%H:%M")
-                print(f"[{current_time} {TIMEZONE}] {log_msg}")
+                
+                # Also show UTC time in log for reference
+                utc_now = datetime.now(pytz.UTC)
+                print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
             else:
-                print(f"⏰ No event scheduled at {now.strftime('%H:%M')}")
+                current_time = now.strftime("%H:%M")
+                print(f"⏰ No event scheduled at {current_time} Lisbon time")
         except discord.Forbidden:
             print("❌ No permission to send messages")
         except Exception as e:
