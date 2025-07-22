@@ -167,22 +167,52 @@ async def debug_time(ctx):
     test_event, test_formatted = get_nation_war_schedule()
     await ctx.send(f"If it were {test_time.strftime('%H:%M')} game time: Event = {test_event}, Time = {test_formatted}")
 
-#@tasks.loop(hours=1)
 @tasks.loop(minutes=1)
 async def hourly_message():
+    # Check at :55 (5-min warning) and :59 (1-min warning) of each hour
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.now(tz)
+    current_hour = now.hour
+    current_minute = now.minute
+    
+    # Only proceed if it's :55 or :59 minutes
+    if current_minute not in [55, 59]:
+        return
+    
+    # Check if this is a Nation War hour
+    reminder_hours = [1, 4, 7, 10, 13, 16, 19, 22]
+    if current_hour not in reminder_hours:
+        return
+    
     channel = bot.get_channel(CHANNEL_ID)
     if channel:
         try:
-            event_type, event_time = get_nation_war_schedule()
-            tz = pytz.timezone(TIMEZONE)
-            current_time = datetime.now(tz).strftime("%H:%M")
-            print(f"[{current_time} {TIMEZONE}] Checking schedule... Event: {event_type}, Time: {event_time}")
-            
-            if event_type:
-                await channel.send(f"🚨 **{event_type}** event starting in 5 minutes at {event_time}! 🚨")
-                print(f"✅ Sent {event_type} reminder for {event_time}")
+            # Calculate the event time
+            event_hour = (current_hour + 1) % 24
+            if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
+                # Convert to 12-hour format
+                if event_hour == 0:
+                    formatted_time = "12:00 AM"
+                elif event_hour < 12:
+                    formatted_time = f"{event_hour}:00 AM"
+                elif event_hour == 12:
+                    formatted_time = "12:00 PM"
+                else:
+                    formatted_time = f"{event_hour-12}:00 PM"
+                
+                # Different messages for 5-min and 1-min warnings
+                if current_minute == 55:
+                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time}! 🚨"
+                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time}"
+                else:  # current_minute == 59
+                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time}! Get ready! ⚠️"
+                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time}"
+                
+                await channel.send(message)
+                current_time = now.strftime("%H:%M")
+                print(f"[{current_time} {TIMEZONE}] {log_msg}")
             else:
-                print(f"⏰ No event scheduled at {current_time}")
+                print(f"⏰ No event scheduled at {now.strftime('%H:%M')}")
         except discord.Forbidden:
             print("❌ No permission to send messages")
         except Exception as e:
