@@ -55,8 +55,13 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 def run_health_server():
     port = int(os.getenv('PORT', 8000))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"Health server starting on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"Health server error: {e}")
+        # Continue without health server if it fails
 
 @bot.event
 async def on_ready():
@@ -141,10 +146,17 @@ async def hourly_message():
 
 if TOKEN:
     # Start health check server in background thread
-    health_thread = threading.Thread(target=run_health_server, daemon=True)
-    health_thread.start()
-    print("Health check server started")
+    try:
+        health_thread = threading.Thread(target=run_health_server, daemon=True)
+        health_thread.start()
+        print("Health check server started")
+    except Exception as e:
+        print(f"Failed to start health server: {e}")
     
-    bot.run(TOKEN)
+    # Start the Discord bot
+    try:
+        bot.run(TOKEN)
+    except Exception as e:
+        print(f"Bot error: {e}")
 else:
     print("Error: DISCORD_BOT_TOKEN not found in .env file")
