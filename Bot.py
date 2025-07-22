@@ -51,13 +51,34 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
+        self.send_header('Content-Length', '15')
         self.end_headers()
         self.wfile.write(b'Bot is running!')
     
     def do_HEAD(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
+        self.send_header('Content-Length', '15')
         self.end_headers()
+    
+    def do_POST(self):
+        self.do_GET()
+    
+    def do_PUT(self):
+        self.do_GET()
+    
+    def do_DELETE(self):
+        self.do_GET()
+    
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Allow', 'GET, HEAD, POST, PUT, DELETE, OPTIONS')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+    
+    def log_message(self, format, *args):
+        # Suppress default logging to reduce noise
+        pass
 
 def run_health_server():
     port = int(os.getenv('PORT', 8000))
