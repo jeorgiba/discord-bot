@@ -127,29 +127,63 @@ async def check_schedule(ctx):
     tz = pytz.timezone(TIMEZONE)
     current_time = datetime.now(tz).strftime("%I:%M %p")
     
+    # Also show Manila time
+    manila_tz = pytz.timezone('Asia/Manila')
+    manila_time = datetime.now(manila_tz).strftime("%I:%M %p")
+    
     if event_type:
         await ctx.send(f"📅 Next event: **{event_type}** at {event_time} (Lisbon time)")
     else:
         await ctx.send(f"📅 No events scheduled right now.\n"
-                      f"Current time (Lisbon): {current_time}")
+                      f"Current time (Lisbon): {current_time}\n"
+                      f"Current time (Manila): {manila_time}")
     
     # Show next reminder times
     reminder_times = ["1:55 AM", "4:55 AM", "7:55 AM", "10:55 AM", "1:55 PM", "4:55 PM", "7:55 PM", "10:55 PM"]
     await ctx.send(f"🕐 Reminder times (Lisbon time): {', '.join(reminder_times)}")
 
+@bot.command(name='times')
+async def show_all_times(ctx):
+    """Show all Nation War event times in Lisbon and Manila time"""
+    lisbon_tz = pytz.timezone('Europe/Lisbon')
+    manila_tz = pytz.timezone('Asia/Manila')
+    
+    # Event times in Lisbon (24-hour format)
+    event_hours = [2, 5, 8, 11, 14, 17, 20, 23]
+    
+    schedule_text = "🌍 **Nation War Schedule:**\n\n"
+    
+    for hour in event_hours:
+        # Create Lisbon time
+        lisbon_time = datetime.now(lisbon_tz).replace(hour=hour, minute=0, second=0, microsecond=0)
+        
+        # Convert to Manila time
+        manila_time = lisbon_time.astimezone(manila_tz)
+        
+        # Format times
+        lisbon_12h = lisbon_time.strftime("%I:%M %p").lstrip('0')
+        manila_12h = manila_time.strftime("%I:%M %p").lstrip('0')
+        
+        schedule_text += f"Lisbon: **{lisbon_12h}** → Manila: **{manila_12h}**\n"
+    
+    await ctx.send(schedule_text)
+
 @bot.command(name='debug')
 async def debug_time(ctx):
     """Debug current time and schedule logic"""
-    # Get Lisbon time and UTC time for comparison
+    # Get Lisbon, UTC, and Manila time for comparison
     lisbon_tz = pytz.timezone('Europe/Lisbon')
     lisbon_now = datetime.now(lisbon_tz)
     utc_now = datetime.now(pytz.UTC)
+    manila_tz = pytz.timezone('Asia/Manila')
+    manila_now = datetime.now(manila_tz)
     
     current_hour = lisbon_now.hour
     current_minute = lisbon_now.minute
     
     await ctx.send(f"🐛 **Debug Info:**\n"
                   f"Current time (Lisbon): {lisbon_now.strftime('%H:%M')} (24h) / {lisbon_now.strftime('%I:%M %p')} (12h)\n"
+                  f"Current time (Manila): {manila_now.strftime('%H:%M')} (24h) / {manila_now.strftime('%I:%M %p')} (12h)\n"
                   f"UTC time: {utc_now.strftime('%H:%M')} (24h) / {utc_now.strftime('%I:%M %p')} (12h)\n"
                   f"Hour: {current_hour}, Minute: {current_minute}\n"
                   f"Is reminder hour: {current_hour in [1, 4, 7, 10, 13, 16, 19, 22]}\n"
@@ -168,7 +202,15 @@ async def debug_time(ctx):
                 formatted_time = "12:00 PM"
             else:
                 formatted_time = f"{event_hour-12}:00 PM"
-            await ctx.send(f"Next Nation War event will be at {formatted_time} Lisbon time")
+            
+            # Calculate Manila time for the event
+            lisbon_event = lisbon_now.replace(hour=event_hour, minute=0, second=0, microsecond=0)
+            manila_event = lisbon_event.astimezone(manila_tz)
+            manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
+            
+            await ctx.send(f"Next Nation War event:\n"
+                          f"Lisbon: {formatted_time}\n"
+                          f"Manila: {manila_formatted}")
 
 @tasks.loop(minutes=1)
 async def hourly_message():
@@ -206,13 +248,19 @@ async def hourly_message():
                 else:
                     formatted_time = f"{event_hour-12}:00 PM"
                 
+                # Calculate Manila time for the event
+                manila_tz = pytz.timezone('Asia/Manila')
+                lisbon_event = now.replace(hour=event_hour, minute=0, second=0, microsecond=0)
+                manila_event = lisbon_event.astimezone(manila_tz)
+                manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
+                
                 # Different messages for 5-min and 1-min warnings
                 if current_minute == 55:
-                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time} (Lisbon time)! 🚨"
-                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time} Lisbon time"
+                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! 🚨"
+                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
                 else:  # current_minute == 59
-                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time} (Lisbon time)! Get ready! ⚠️"
-                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time} Lisbon time"
+                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! Get ready! ⚠️"
+                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
                 
                 await channel.send(message)
                 current_time = now.strftime("%H:%M")
