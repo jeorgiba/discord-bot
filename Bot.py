@@ -13,6 +13,7 @@ TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 CHANNEL_ID = int(os.getenv('CHANNEL_ID', 1396766554028511372))
 
 intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent for commands
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 def get_nation_war_schedule():
@@ -52,6 +53,11 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
         self.wfile.write(b'Bot is running!')
+    
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
 
 def run_health_server():
     port = int(os.getenv('PORT', 8000))
