@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: discord-bot
+    runtime: python3
+    buildCommand: pip install -r requirements.txt
+    startCommand: python Bot.py
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: CHANNEL_ID
+        value: "1397164536204759090"
+      - key: PORT
+        value: "10000"
