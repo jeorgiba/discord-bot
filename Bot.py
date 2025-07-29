@@ -51,6 +51,42 @@ def get_nation_war_schedule():
 
     return None, now.strftime("%I:%M %p")
 
+def get_world_boss_schedule():
+    """
+    Returns World Boss based on scheduled times in Lisbon time:
+    World Boss: 1:00 AM & 1:10 AM, 6:00 AM & 6:10 AM, 11:00 AM & 11:10 AM, 
+               4:00 PM & 4:10 PM & 4:20 PM, 9:00 PM & 9:10 PM
+    """
+    # Get current time in Lisbon timezone
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.now(tz)
+    current_hour = now.hour
+    current_minute = now.minute
+
+    # World Boss times with their notification minutes
+    world_boss_schedule = {
+        1: [0, 10],      # 1:00 AM & 1:10 AM
+        6: [0, 10],      # 6:00 AM & 6:10 AM  
+        11: [0, 10],     # 11:00 AM & 11:10 AM
+        16: [0, 10, 20], # 4:00 PM & 4:10 PM & 4:20 PM
+        21: [0, 10]      # 9:00 PM & 9:10 PM
+    }
+    
+    if current_hour in world_boss_schedule and current_minute in world_boss_schedule[current_hour]:
+        # Convert to 12-hour format
+        if current_hour == 0:
+            formatted_time = "12:00 AM"
+        elif current_hour < 12:
+            formatted_time = f"{current_hour}:00 AM"
+        elif current_hour == 12:
+            formatted_time = "12:00 PM"
+        else:
+            formatted_time = f"{current_hour-12}:00 PM"
+        
+        return "World Boss", formatted_time, current_minute
+
+    return None, now.strftime("%I:%M %p"), None
+
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -120,51 +156,120 @@ async def test_notification(ctx):
     await ctx.send("🚨 **Nation War** event starting in 5 minutes at 2:00 AM! 🚨")
     print("Test notification sent!")
 
+@bot.command(name='testwb')
+async def test_world_boss(ctx):
+    """Test command to send a sample World Boss notification"""
+    await ctx.send("🐉 **World Boss** event is starting NOW at 4:00 PM (Lisbon time) / 11:00 PM (Manila time)! 🐉")
+    print("Test World Boss notification sent!")
+
 @bot.command(name='schedule')
 async def check_schedule(ctx):
     """Check the current schedule status"""
-    event_type, event_time = get_nation_war_schedule()
     tz = pytz.timezone(TIMEZONE)
-    current_time = datetime.now(tz).strftime("%I:%M %p")
-    
-    # Also show Manila time
     manila_tz = pytz.timezone('Asia/Manila')
+    current_time = datetime.now(tz).strftime("%I:%M %p")
     manila_time = datetime.now(manila_tz).strftime("%I:%M %p")
     
-    if event_type:
-        await ctx.send(f"📅 Next event: **{event_type}** at {event_time} (Lisbon time)")
+    # Check Nation War
+    nation_war_event, nation_war_time = get_nation_war_schedule()
+    
+    # Check World Boss
+    world_boss_event, world_boss_time, _ = get_world_boss_schedule()
+    
+    if nation_war_event or world_boss_event:
+        schedule_text = "📅 **Upcoming Events:**\n"
+        if nation_war_event:
+            schedule_text += f"� **{nation_war_event}** at {nation_war_time} (Lisbon time)\n"
+        if world_boss_event:
+            schedule_text += f"🐉 **{world_boss_event}** at {world_boss_time} (Lisbon time)\n"
+        await ctx.send(schedule_text)
     else:
         await ctx.send(f"📅 No events scheduled right now.\n"
                       f"Current time (Lisbon): {current_time}\n"
                       f"Current time (Manila): {manila_time}")
     
-    # Show next reminder times
+    # Show Nation War reminder times
     reminder_times = ["1:55 AM", "4:55 AM", "7:55 AM", "10:55 AM", "1:55 PM", "4:55 PM", "7:55 PM", "10:55 PM"]
-    await ctx.send(f"🕐 Reminder times (Lisbon time): {', '.join(reminder_times)}")
+    await ctx.send(f"� **Nation War** reminders (Lisbon time): {', '.join(reminder_times)}")
+    
+    # Show World Boss times
+    world_boss_times = ["1:00 AM & 1:10 AM", "6:00 AM & 6:10 AM", "11:00 AM & 11:10 AM", "4:00 PM & 4:10 PM & 4:20 PM", "9:00 PM & 9:10 PM"]
+    await ctx.send(f"🐉 **World Boss** times (Lisbon time): {', '.join(world_boss_times)}")
 
 @bot.command(name='times')
 async def show_all_times(ctx):
-    """Show all Nation War event times in Lisbon and Manila time"""
+    """Show all event times in Lisbon and Manila time"""
     lisbon_tz = pytz.timezone('Europe/Lisbon')
     manila_tz = pytz.timezone('Asia/Manila')
     
-    # Event times in Lisbon (24-hour format)
-    event_hours = [2, 5, 8, 11, 14, 17, 20, 23]
+    schedule_text = "🌍 **Complete Event Schedule:**\n\n"
     
-    schedule_text = "🌍 **Nation War Schedule:**\n\n"
+    # Nation War Schedule
+    schedule_text += "🚨 **Nation War Events:**\n"
+    nation_war_hours = [2, 5, 8, 11, 14, 17, 20, 23]
     
-    for hour in event_hours:
-        # Create Lisbon time
+    for hour in nation_war_hours:
         lisbon_time = datetime.now(lisbon_tz).replace(hour=hour, minute=0, second=0, microsecond=0)
-        
-        # Convert to Manila time
         manila_time = lisbon_time.astimezone(manila_tz)
         
-        # Format times
         lisbon_12h = lisbon_time.strftime("%I:%M %p").lstrip('0')
         manila_12h = manila_time.strftime("%I:%M %p").lstrip('0')
         
         schedule_text += f"Lisbon: **{lisbon_12h}** → Manila: **{manila_12h}**\n"
+    
+    # World Boss Schedule
+    schedule_text += "\n🐉 **World Boss Events:**\n"
+    world_boss_times = [
+        (1, [0, 10]),      # 1:00 AM & 1:10 AM
+        (6, [0, 10]),      # 6:00 AM & 6:10 AM  
+        (11, [0, 10]),     # 11:00 AM & 11:10 AM
+        (16, [0, 10, 20]), # 4:00 PM & 4:10 PM & 4:20 PM
+        (21, [0, 10])      # 9:00 PM & 9:10 PM
+    ]
+    
+    for hour, minutes in world_boss_times:
+        for minute in minutes:
+            lisbon_time = datetime.now(lisbon_tz).replace(hour=hour, minute=minute, second=0, microsecond=0)
+            manila_time = lisbon_time.astimezone(manila_tz)
+            
+            lisbon_12h = lisbon_time.strftime("%I:%M %p").lstrip('0')
+            manila_12h = manila_time.strftime("%I:%M %p").lstrip('0')
+            
+            schedule_text += f"Lisbon: **{lisbon_12h}** → Manila: **{manila_12h}**\n"
+    
+    await ctx.send(schedule_text)
+
+@bot.command(name='worldboss')
+async def show_world_boss_times(ctx):
+    """Show World Boss event times in Lisbon and Manila time"""
+    lisbon_tz = pytz.timezone('Europe/Lisbon')
+    manila_tz = pytz.timezone('Asia/Manila')
+    
+    schedule_text = "🐉 **World Boss Schedule:**\n\n"
+    
+    world_boss_times = [
+        (1, [0, 10]),      # 1:00 AM & 1:10 AM
+        (6, [0, 10]),      # 6:00 AM & 6:10 AM  
+        (11, [0, 10]),     # 11:00 AM & 11:10 AM
+        (16, [0, 10, 20]), # 4:00 PM & 4:10 PM & 4:20 PM
+        (21, [0, 10])      # 9:00 PM & 9:10 PM
+    ]
+    
+    for hour, minutes in world_boss_times:
+        time_list = []
+        manila_time_list = []
+        
+        for minute in minutes:
+            lisbon_time = datetime.now(lisbon_tz).replace(hour=hour, minute=minute, second=0, microsecond=0)
+            manila_time = lisbon_time.astimezone(manila_tz)
+            
+            lisbon_12h = lisbon_time.strftime("%I:%M %p").lstrip('0')
+            manila_12h = manila_time.strftime("%I:%M %p").lstrip('0')
+            
+            time_list.append(lisbon_12h)
+            manila_time_list.append(manila_12h)
+        
+        schedule_text += f"Lisbon: **{' & '.join(time_list)}** → Manila: **{' & '.join(manila_time_list)}**\n"
     
     await ctx.send(schedule_text)
 
@@ -186,11 +291,15 @@ async def debug_time(ctx):
                   f"Current time (Manila): {manila_now.strftime('%H:%M')} (24h) / {manila_now.strftime('%I:%M %p')} (12h)\n"
                   f"UTC time: {utc_now.strftime('%H:%M')} (24h) / {utc_now.strftime('%I:%M %p')} (12h)\n"
                   f"Hour: {current_hour}, Minute: {current_minute}\n"
-                  f"Is reminder hour: {current_hour in [1, 4, 7, 10, 13, 16, 19, 22]}\n"
-                  f"Is minute 55: {current_minute == 55}\n"
-                  f"Is minute 59: {current_minute == 59}")
+                  f"Nation War reminder hour: {current_hour in [1, 4, 7, 10, 13, 16, 19, 22]}\n"
+                  f"Is minute 55/59: {current_minute in [55, 59]}\n"
+                  f"World Boss hour: {current_hour in [1, 6, 11, 16, 21]}\n"
+                  f"Is minute 0/10/20: {current_minute in [0, 10, 20]}")
     
-    # Test what would happen at next reminder time
+    # Check for upcoming events
+    events_info = ""
+    
+    # Test Nation War
     if current_hour in [1, 4, 7, 10, 13, 16, 19, 22]:
         event_hour = (current_hour + 1) % 24
         if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
@@ -203,80 +312,133 @@ async def debug_time(ctx):
             else:
                 formatted_time = f"{event_hour-12}:00 PM"
             
-            # Calculate Manila time for the event
             lisbon_event = lisbon_now.replace(hour=event_hour, minute=0, second=0, microsecond=0)
             manila_event = lisbon_event.astimezone(manila_tz)
             manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
             
-            await ctx.send(f"Next Nation War event:\n"
-                          f"Lisbon: {formatted_time}\n"
-                          f"Manila: {manila_formatted}")
+            events_info += f"🚨 Next Nation War:\nLisbon: {formatted_time}\nManila: {manila_formatted}\n\n"
+    
+    # Test World Boss
+    world_boss_schedule = {
+        1: [0, 10],      # 1:00 AM & 1:10 AM
+        6: [0, 10],      # 6:00 AM & 6:10 AM  
+        11: [0, 10],     # 11:00 AM & 11:10 AM
+        16: [0, 10, 20], # 4:00 PM & 4:10 PM & 4:20 PM
+        21: [0, 10]      # 9:00 PM & 9:10 PM
+    }
+    
+    if current_hour in world_boss_schedule:
+        upcoming_minutes = [m for m in world_boss_schedule[current_hour] if m >= current_minute]
+        if upcoming_minutes:
+            next_minute = upcoming_minutes[0]
+            if current_hour == 0:
+                formatted_time = f"12:{next_minute:02d} AM"
+            elif current_hour < 12:
+                formatted_time = f"{current_hour}:{next_minute:02d} AM"
+            elif current_hour == 12:
+                formatted_time = f"12:{next_minute:02d} PM"
+            else:
+                formatted_time = f"{current_hour-12}:{next_minute:02d} PM"
+            
+            lisbon_event = lisbon_now.replace(minute=next_minute, second=0, microsecond=0)
+            manila_event = lisbon_event.astimezone(manila_tz)
+            manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
+            
+            events_info += f"🐉 Next World Boss:\nLisbon: {formatted_time}\nManila: {manila_formatted}"
+    
+    if events_info:
+        await ctx.send(events_info)
+    else:
+        await ctx.send("No immediate events scheduled.")
 
 @tasks.loop(minutes=1)
 async def hourly_message():
-    # Check at :55 (5-min warning) and :59 (1-min warning) of each hour in Lisbon time
+    # Check for both Nation War and World Boss events
     tz = pytz.timezone(TIMEZONE)  # Europe/Lisbon
     now = datetime.now(tz)
     current_hour = now.hour
     current_minute = now.minute
     
-    # Only proceed if it's :55 or :59 minutes
-    if current_minute not in [55, 59]:
-        return
-    
-    # Check if this is a Nation War hour in Lisbon time
-    # Events at: 2, 5, 8, 11, 14, 17, 20, 23 (Lisbon time)
-    # So reminders at: 1, 4, 7, 10, 13, 16, 19, 22 (Lisbon time)
-    reminder_hours = [1, 4, 7, 10, 13, 16, 19, 22]
-    if current_hour not in reminder_hours:
-        return
-    
     channel = bot.get_channel(CHANNEL_ID)
-    if channel:
-        try:
-            # Calculate the event time
-            event_hour = (current_hour + 1) % 24
-            # Double-check this is a valid event hour
-            if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
+    if not channel:
+        print(f"❌ Channel {CHANNEL_ID} not found")
+        return
+    
+    manila_tz = pytz.timezone('Asia/Manila')
+    
+    try:
+        # Check for Nation War (at :55 and :59 minutes)
+        if current_minute in [55, 59]:
+            reminder_hours = [1, 4, 7, 10, 13, 16, 19, 22]
+            if current_hour in reminder_hours:
+                event_hour = (current_hour + 1) % 24
+                if event_hour in [2, 5, 8, 11, 14, 17, 20, 23]:
+                    # Convert to 12-hour format
+                    if event_hour == 0:
+                        formatted_time = "12:00 AM"
+                    elif event_hour < 12:
+                        formatted_time = f"{event_hour}:00 AM"
+                    elif event_hour == 12:
+                        formatted_time = "12:00 PM"
+                    else:
+                        formatted_time = f"{event_hour-12}:00 PM"
+                    
+                    # Calculate Manila time for the event
+                    lisbon_event = now.replace(hour=event_hour, minute=0, second=0, microsecond=0)
+                    manila_event = lisbon_event.astimezone(manila_tz)
+                    manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
+                    
+                    # Different messages for 5-min and 1-min warnings
+                    if current_minute == 55:
+                        message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! 🚨"
+                        log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                    else:  # current_minute == 59
+                        message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! Get ready! ⚠️"
+                        log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                    
+                    await channel.send(message)
+                    current_time = now.strftime("%H:%M")
+                    utc_now = datetime.now(pytz.UTC)
+                    print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
+        
+        # Check for World Boss events (at :00, :10, :20 minutes)
+        if current_minute in [0, 10, 20]:
+            world_boss_schedule = {
+                1: [0, 10],      # 1:00 AM & 1:10 AM
+                6: [0, 10],      # 6:00 AM & 6:10 AM  
+                11: [0, 10],     # 11:00 AM & 11:10 AM
+                16: [0, 10, 20], # 4:00 PM & 4:10 PM & 4:20 PM
+                21: [0, 10]      # 9:00 PM & 9:10 PM
+            }
+            
+            if current_hour in world_boss_schedule and current_minute in world_boss_schedule[current_hour]:
                 # Convert to 12-hour format
-                if event_hour == 0:
-                    formatted_time = "12:00 AM"
-                elif event_hour < 12:
-                    formatted_time = f"{event_hour}:00 AM"
-                elif event_hour == 12:
-                    formatted_time = "12:00 PM"
+                if current_hour == 0:
+                    formatted_time = f"12:{current_minute:02d} AM"
+                elif current_hour < 12:
+                    formatted_time = f"{current_hour}:{current_minute:02d} AM"
+                elif current_hour == 12:
+                    formatted_time = f"12:{current_minute:02d} PM"
                 else:
-                    formatted_time = f"{event_hour-12}:00 PM"
+                    formatted_time = f"{current_hour-12}:{current_minute:02d} PM"
                 
                 # Calculate Manila time for the event
-                manila_tz = pytz.timezone('Asia/Manila')
-                lisbon_event = now.replace(hour=event_hour, minute=0, second=0, microsecond=0)
+                lisbon_event = now.replace(second=0, microsecond=0)
                 manila_event = lisbon_event.astimezone(manila_tz)
                 manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
                 
-                # Different messages for 5-min and 1-min warnings
-                if current_minute == 55:
-                    message = f"🚨 **Nation War** event starting in 5 minutes at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! 🚨"
-                    log_msg = f"✅ Sent 5-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
-                else:  # current_minute == 59
-                    message = f"⚠️ **Nation War** event starting in 1 minute at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! Get ready! ⚠️"
-                    log_msg = f"✅ Sent 1-minute Nation War reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                message = f"🐉 **World Boss** event is starting NOW at {formatted_time} (Lisbon time) / {manila_formatted} (Manila time)! 🐉"
+                log_msg = f"✅ Sent World Boss notification for {formatted_time} Lisbon / {manila_formatted} Manila"
                 
                 await channel.send(message)
                 current_time = now.strftime("%H:%M")
-                
-                # Also show UTC time in log for reference
                 utc_now = datetime.now(pytz.UTC)
                 print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
-            else:
-                current_time = now.strftime("%H:%M")
-                print(f"⏰ No event scheduled at {current_time} Lisbon time")
-        except discord.Forbidden:
-            print("❌ No permission to send messages")
-        except Exception as e:
-            print(f"❌ Error: {e}")
-    else:
-        print(f"❌ Channel {CHANNEL_ID} not found")
+                
+    except discord.Forbidden:
+        print("❌ No permission to send messages")
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 if TOKEN:
     # Start health check server in background thread
