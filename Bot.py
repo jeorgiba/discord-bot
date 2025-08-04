@@ -171,7 +171,7 @@ async def test_notification(ctx):
 @bot.command(name='testwb')
 async def test_world_boss(ctx):
     """Test command to send a sample World Boss notification"""
-    await ctx.send("� World Boss NOW at 4:00 PM Lisbon / 11:00 PM Manila! �")
+    await ctx.send("🐲 World Boss NOW at 4:00 PM Lisbon / 11:00 PM Manila! 🐲")
     print("Test World Boss notification sent!")
 
 @bot.command(name='schedule')
@@ -193,7 +193,7 @@ async def check_schedule(ctx):
         if nation_war_event:
             schedule_text += f"⚔️ {nation_war_event} at {nation_war_time} (Lisbon time)\n"
         if world_boss_event:
-            schedule_text += f"� {world_boss_event} at {world_boss_time} (Lisbon time)\n"
+            schedule_text += f"🐲 {world_boss_event} at {world_boss_time} (Lisbon time)\n"
         await ctx.send(schedule_text)
     else:
         await ctx.send(f"📅 No events scheduled right now.\n"
@@ -206,7 +206,7 @@ async def check_schedule(ctx):
     
     # Show World Boss warning times
     world_boss_times = ["12:59 AM → 1:00 AM", "1:09 AM → 1:10 AM", "5:59 AM → 6:00 AM", "6:09 AM → 6:10 AM", "10:59 AM → 11:00 AM", "11:09 AM → 11:10 AM", "3:59 PM → 4:00 PM", "4:09 PM → 4:10 PM", "4:19 PM → 4:20 PM", "8:59 PM → 9:00 PM", "9:09 PM → 9:10 PM"]
-    await ctx.send(f"� World Boss 1-min warnings (Lisbon time): {', '.join(world_boss_times)}")
+    await ctx.send(f"🐲 World Boss 1-min warnings (Lisbon time): {', '.join(world_boss_times)}")
 
 @bot.command(name='times')
 async def show_all_times(ctx):
@@ -230,7 +230,7 @@ async def show_all_times(ctx):
         schedule_text += f"Lisbon: {lisbon_12h} → Manila: {manila_12h}\n"
     
     # World Boss Schedule
-    schedule_text += "\n� World Boss Events:\n"
+    schedule_text += "\n🐲 World Boss Events:\n"
     world_boss_times = [
         (1, [0, 10]),      # 1:00 AM & 1:10 AM
         (6, [0, 10]),      # 6:00 AM & 6:10 AM  
@@ -257,7 +257,7 @@ async def show_world_boss_times(ctx):
     lisbon_tz = pytz.timezone('Europe/Lisbon')
     manila_tz = pytz.timezone('Asia/Manila')
     
-    schedule_text = "� World Boss Schedule:\n\n"
+    schedule_text = "🐲 World Boss Schedule:\n\n"
     
     world_boss_times = [
         (1, [0, 10]),      # 1:00 AM & 1:10 AM
@@ -368,7 +368,7 @@ async def debug_time(ctx):
             manila_event = lisbon_event.astimezone(manila_tz)
             manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
             
-            events_info += f"� Next World Boss:\nLisbon: {formatted_time}\nManila: {manila_formatted}"
+            events_info += f"🐲 Next World Boss:\nLisbon: {formatted_time}\nManila: {manila_formatted}"
     
     if events_info:
         await ctx.send(events_info)
@@ -463,7 +463,7 @@ async def hourly_message():
                 manila_event = lisbon_event.astimezone(manila_tz)
                 manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
                 
-                message = f"� World Boss in 1min at {formatted_time} Lisbon / {manila_formatted} Manila! Ready! �"
+                message = f"🐲 World Boss in 1min at {formatted_time} Lisbon / {manila_formatted} Manila! Ready! 🐲"
                 log_msg = f"✅ Sent 1-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
                 
                 await channel.send(message)
