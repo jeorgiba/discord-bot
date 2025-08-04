@@ -53,9 +53,11 @@ def get_nation_war_schedule():
 
 def get_world_boss_schedule():
     """
-    Returns World Boss based on scheduled times in Lisbon time (1 minute before events):
-    World Boss warnings: 12:59 AM, 1:09 AM, 5:59 AM, 6:09 AM, 10:59 AM, 11:09 AM, 
-                        3:59 PM, 4:09 PM, 4:19 PM, 8:59 PM, 9:09 PM
+    Returns World Boss based on scheduled times in Lisbon time (2 minutes and 1 minute before events):
+    World Boss 2-min warnings: 12:58 AM, 1:08 AM, 5:58 AM, 6:08 AM, 10:58 AM, 11:08 AM, 
+                               3:58 PM, 4:08 PM, 4:18 PM, 8:58 PM, 9:08 PM
+    World Boss 1-min warnings: 12:59 AM, 1:09 AM, 5:59 AM, 6:09 AM, 10:59 AM, 11:09 AM, 
+                               3:59 PM, 4:09 PM, 4:19 PM, 8:59 PM, 9:09 PM
     """
     # Get current time in Lisbon timezone
     tz = pytz.timezone(TIMEZONE)
@@ -63,27 +65,33 @@ def get_world_boss_schedule():
     current_hour = now.hour
     current_minute = now.minute
 
-    # World Boss warning times (1 minute before actual events)
+    # World Boss warning times (2 minutes and 1 minute before actual events)
     world_boss_warnings = {
-        0: [59],         # 12:59 AM for 1:00 AM event
-        1: [9],          # 1:09 AM for 1:10 AM event
-        5: [59],         # 5:59 AM for 6:00 AM event
-        6: [9],          # 6:09 AM for 6:10 AM event
-        10: [59],        # 10:59 AM for 11:00 AM event
-        11: [9],         # 11:09 AM for 11:10 AM event
-        15: [59],        # 3:59 PM for 4:00 PM event
-        16: [9, 19],     # 4:09 PM for 4:10 PM, 4:19 PM for 4:20 PM event
-        20: [59],        # 8:59 PM for 9:00 PM event
-        21: [9]          # 9:09 PM for 9:10 PM event
+        0: [58, 59],         # 12:58 AM & 12:59 AM for 1:00 AM event
+        1: [8, 9],           # 1:08 AM & 1:09 AM for 1:10 AM event
+        5: [58, 59],         # 5:58 AM & 5:59 AM for 6:00 AM event
+        6: [8, 9],           # 6:08 AM & 6:09 AM for 6:10 AM event
+        10: [58, 59],        # 10:58 AM & 10:59 AM for 11:00 AM event
+        11: [8, 9],          # 11:08 AM & 11:09 AM for 11:10 AM event
+        15: [58, 59],        # 3:58 PM & 3:59 PM for 4:00 PM event
+        16: [8, 9, 18, 19],  # 4:08 PM & 4:09 PM for 4:10 PM, 4:18 PM & 4:19 PM for 4:20 PM event
+        20: [58, 59],        # 8:58 PM & 8:59 PM for 9:00 PM event
+        21: [8, 9]           # 9:08 PM & 9:09 PM for 9:10 PM event
     }
     
     if current_hour in world_boss_warnings and current_minute in world_boss_warnings[current_hour]:
-        # Calculate the actual event time (1 minute later)
+        # Calculate the actual event time (1 or 2 minutes later)
         event_hour = current_hour
-        event_minute = (current_minute + 1) % 60
-        if current_minute == 59:
-            event_hour = (current_hour + 1) % 24
-            event_minute = 0
+        if current_minute in [58, 8, 18]:  # 2-minute warnings
+            event_minute = (current_minute + 2) % 60
+            if current_minute == 58:
+                event_hour = (current_hour + 1) % 24
+                event_minute = 0
+        else:  # 1-minute warnings [59, 9, 19]
+            event_minute = (current_minute + 1) % 60
+            if current_minute == 59:
+                event_hour = (current_hour + 1) % 24
+                event_minute = 0
         
         # Convert to 12-hour format
         if event_hour == 0:
@@ -205,8 +213,8 @@ async def check_schedule(ctx):
     await ctx.send(f"⚔️ Nation War reminders (Lisbon time): {', '.join(reminder_times)}")
     
     # Show World Boss warning times
-    world_boss_times = ["12:59 AM → 1:00 AM", "1:09 AM → 1:10 AM", "5:59 AM → 6:00 AM", "6:09 AM → 6:10 AM", "10:59 AM → 11:00 AM", "11:09 AM → 11:10 AM", "3:59 PM → 4:00 PM", "4:09 PM → 4:10 PM", "4:19 PM → 4:20 PM", "8:59 PM → 9:00 PM", "9:09 PM → 9:10 PM"]
-    await ctx.send(f"🐲 World Boss 1-min warnings (Lisbon time): {', '.join(world_boss_times)}")
+    world_boss_times = ["12:58 AM → 1:00 AM", "12:59 AM → 1:00 AM", "1:08 AM → 1:10 AM", "1:09 AM → 1:10 AM", "5:58 AM → 6:00 AM", "5:59 AM → 6:00 AM", "6:08 AM → 6:10 AM", "6:09 AM → 6:10 AM", "10:58 AM → 11:00 AM", "10:59 AM → 11:00 AM", "11:08 AM → 11:10 AM", "11:09 AM → 11:10 AM", "3:58 PM → 4:00 PM", "3:59 PM → 4:00 PM", "4:08 PM → 4:10 PM", "4:09 PM → 4:10 PM", "4:18 PM → 4:20 PM", "4:19 PM → 4:20 PM", "8:58 PM → 9:00 PM", "8:59 PM → 9:00 PM", "9:08 PM → 9:10 PM", "9:09 PM → 9:10 PM"]
+    await ctx.send(f"🐲 World Boss 2-min & 1-min warnings (Lisbon time): {', '.join(world_boss_times)}")
 
 @bot.command(name='times')
 async def show_all_times(ctx):
@@ -306,7 +314,7 @@ async def debug_time(ctx):
                   f"Nation War reminder hour: {current_hour in [1, 4, 7, 10, 13, 16, 19, 22]}\n"
                   f"Is minute 55/59: {current_minute in [55, 59]}\n"
                   f"World Boss warning hour: {current_hour in [0, 1, 5, 6, 10, 11, 15, 16, 20, 21]}\n"
-                  f"Is minute 59/09/19: {current_minute in [59, 9, 19]}")
+                  f"Is minute 58/59/08/09/18/19: {current_minute in [58, 59, 8, 9, 18, 19]}")
     
     # Check for upcoming events
     events_info = ""
@@ -332,28 +340,34 @@ async def debug_time(ctx):
     
     # Test World Boss
     world_boss_warnings = {
-        0: [59],         # 12:59 AM for 1:00 AM event
-        1: [9],          # 1:09 AM for 1:10 AM event
-        5: [59],         # 5:59 AM for 6:00 AM event
-        6: [9],          # 6:09 AM for 6:10 AM event
-        10: [59],        # 10:59 AM for 11:00 AM event
-        11: [9],         # 11:09 AM for 11:10 AM event
-        15: [59],        # 3:59 PM for 4:00 PM event
-        16: [9, 19],     # 4:09 PM for 4:10 PM, 4:19 PM for 4:20 PM event
-        20: [59],        # 8:59 PM for 9:00 PM event
-        21: [9]          # 9:09 PM for 9:10 PM event
+        0: [58, 59],         # 12:58 AM & 12:59 AM for 1:00 AM event
+        1: [8, 9],           # 1:08 AM & 1:09 AM for 1:10 AM event
+        5: [58, 59],         # 5:58 AM & 5:59 AM for 6:00 AM event
+        6: [8, 9],           # 6:08 AM & 6:09 AM for 6:10 AM event
+        10: [58, 59],        # 10:58 AM & 10:59 AM for 11:00 AM event
+        11: [8, 9],          # 11:08 AM & 11:09 AM for 11:10 AM event
+        15: [58, 59],        # 3:58 PM & 3:59 PM for 4:00 PM event
+        16: [8, 9, 18, 19],  # 4:08 PM & 4:09 PM for 4:10 PM, 4:18 PM & 4:19 PM for 4:20 PM event
+        20: [58, 59],        # 8:58 PM & 8:59 PM for 9:00 PM event
+        21: [8, 9]           # 9:08 PM & 9:09 PM for 9:10 PM event
     }
     
     if current_hour in world_boss_warnings:
         upcoming_minutes = [m for m in world_boss_warnings[current_hour] if m >= current_minute]
         if upcoming_minutes:
             next_minute = upcoming_minutes[0]
-            # Calculate the actual event time (1 minute after warning)
+            # Calculate the actual event time (1 or 2 minutes after warning)
             event_hour = current_hour
-            event_minute = (next_minute + 1) % 60
-            if next_minute == 59:
-                event_hour = (current_hour + 1) % 24
-                event_minute = 0
+            if next_minute in [58, 8, 18]:  # 2-minute warnings
+                event_minute = (next_minute + 2) % 60
+                if next_minute == 58:
+                    event_hour = (current_hour + 1) % 24
+                    event_minute = 0
+            else:  # 1-minute warnings [59, 9, 19]
+                event_minute = (next_minute + 1) % 60
+                if next_minute == 59:
+                    event_hour = (current_hour + 1) % 24
+                    event_minute = 0
             
             if event_hour == 0:
                 formatted_time = f"12:{event_minute:02d} AM"
@@ -425,28 +439,37 @@ async def hourly_message():
                     utc_now = datetime.now(pytz.UTC)
                     print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
         
-        # Check for World Boss events (1 minute before: at :59, :09, :19 minutes)
-        if current_minute in [59, 9, 19]:
+        # Check for World Boss events (2 minutes and 1 minute before: at :58, :59, :08, :09, :18, :19 minutes)
+        if current_minute in [58, 59, 8, 9, 18, 19]:
             world_boss_schedule = {
-                0: [59],         # 12:59 AM for 1:00 AM event
-                1: [9],          # 1:09 AM for 1:10 AM event
-                5: [59],         # 5:59 AM for 6:00 AM event
-                6: [9],          # 6:09 AM for 6:10 AM event
-                10: [59],        # 10:59 AM for 11:00 AM event
-                11: [9],         # 11:09 AM for 11:10 AM event
-                15: [59],        # 3:59 PM for 4:00 PM event
-                16: [9, 19],     # 4:09 PM for 4:10 PM, 4:19 PM for 4:20 PM event
-                20: [59],        # 8:59 PM for 9:00 PM event
-                21: [9]          # 9:09 PM for 9:10 PM event
+                0: [58, 59],         # 12:58 AM & 12:59 AM for 1:00 AM event
+                1: [8, 9],           # 1:08 AM & 1:09 AM for 1:10 AM event
+                5: [58, 59],         # 5:58 AM & 5:59 AM for 6:00 AM event
+                6: [8, 9],           # 6:08 AM & 6:09 AM for 6:10 AM event
+                10: [58, 59],        # 10:58 AM & 10:59 AM for 11:00 AM event
+                11: [8, 9],          # 11:08 AM & 11:09 AM for 11:10 AM event
+                15: [58, 59],        # 3:58 PM & 3:59 PM for 4:00 PM event
+                16: [8, 9, 18, 19],  # 4:08 PM & 4:09 PM for 4:10 PM, 4:18 PM & 4:19 PM for 4:20 PM event
+                20: [58, 59],        # 8:58 PM & 8:59 PM for 9:00 PM event
+                21: [8, 9]           # 9:08 PM & 9:09 PM for 9:10 PM event
             }
             
             if current_hour in world_boss_schedule and current_minute in world_boss_schedule[current_hour]:
-                # Calculate the actual event time (1 minute later)
+                # Calculate the actual event time (1 or 2 minutes later)
                 event_hour = current_hour
-                event_minute = (current_minute + 1) % 60
-                if current_minute == 59:
-                    event_hour = (current_hour + 1) % 24
-                    event_minute = 0
+                warning_type = ""
+                if current_minute in [58, 8, 18]:  # 2-minute warnings
+                    event_minute = (current_minute + 2) % 60
+                    if current_minute == 58:
+                        event_hour = (current_hour + 1) % 24
+                        event_minute = 0
+                    warning_type = "2min"
+                else:  # 1-minute warnings [59, 9, 19]
+                    event_minute = (current_minute + 1) % 60
+                    if current_minute == 59:
+                        event_hour = (current_hour + 1) % 24
+                        event_minute = 0
+                    warning_type = "1min"
                 
                 # Convert to 12-hour format
                 if event_hour == 0:
@@ -463,8 +486,13 @@ async def hourly_message():
                 manila_event = lisbon_event.astimezone(manila_tz)
                 manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
                 
-                message = f"🐲 World Boss in 1min at {formatted_time} Lisbon / {manila_formatted} Manila! Ready! 🐲"
-                log_msg = f"✅ Sent 1-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                # Different messages for 2-min and 1-min warnings
+                if warning_type == "2min":
+                    message = f"🐲 World Boss in 2min at {formatted_time} Lisbon / {manila_formatted} Manila! 🐲"
+                    log_msg = f"✅ Sent 2-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                else:  # 1min
+                    message = f"🐲 World Boss in 1min at {formatted_time} Lisbon / {manila_formatted} Manila! Ready! 🐲"
+                    log_msg = f"✅ Sent 1-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
                 
                 await channel.send(message)
                 current_time = now.strftime("%H:%M")
