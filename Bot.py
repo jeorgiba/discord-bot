@@ -425,52 +425,52 @@ async def hourly_message():
                     utc_now = datetime.now(pytz.UTC)
                     print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
         
-        # Check for World Boss events (2 minutes before: at :58, :08, :18 minutes) - TEMPORARILY DISABLED
-        # if current_minute in [58, 8, 18]:
-        #     world_boss_schedule = {
-        #         0: [58],         # 12:58 AM for 1:00 AM event
-        #         1: [8],          # 1:08 AM for 1:10 AM event
-        #         5: [58],         # 5:58 AM for 6:00 AM event
-        #         6: [8],          # 6:08 AM for 6:10 AM event
-        #         10: [58],        # 10:58 AM for 11:00 AM event
-        #         11: [8],         # 11:08 AM for 11:10 AM event
-        #         15: [58],        # 3:58 PM for 4:00 PM event
-        #         16: [8, 18],     # 4:08 PM for 4:10 PM, 4:18 PM for 4:20 PM event
-        #         20: [58],        # 8:58 PM for 9:00 PM event
-        #         21: [8]          # 9:08 PM for 9:10 PM event
-        #     }
-        #     
-        #     if current_hour in world_boss_schedule and current_minute in world_boss_schedule[current_hour]:
-        #         # Calculate the actual event time (2 minutes later)
-        #         event_hour = current_hour
-        #         event_minute = (current_minute + 2) % 60
-        #         if current_minute == 58:
-        #             event_hour = (current_hour + 1) % 24
-        #             event_minute = 0
-        #         
-        #         # Convert to 12-hour format
-        #         if event_hour == 0:
-        #             formatted_time = f"12:{event_minute:02d} AM"
-        #         elif event_hour < 12:
-        #             formatted_time = f"{event_hour}:{event_minute:02d} AM"
-        #         elif event_hour == 12:
-        #             formatted_time = f"12:{event_minute:02d} PM"
-        #         else:
-        #             formatted_time = f"{event_hour-12}:{event_minute:02d} PM"
-        #         
-        #         # Calculate Manila time for the event
-        #         lisbon_event = now.replace(hour=event_hour, minute=event_minute, second=0, microsecond=0)
-        #         manila_event = lisbon_event.astimezone(manila_tz)
-        #         manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
-        #         
-        #         # Send 2-minute warning
-        #         message = f"🐲 World Boss in 2min at {formatted_time} Lisbon / {manila_formatted} Manila! 🐲"
-        #         log_msg = f"✅ Sent 2-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
-        #         
-        #         await channel.send(message)
-        #         current_time = now.strftime("%H:%M")
-        #         utc_now = datetime.now(pytz.UTC)
-        #         print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
+        # Check for World Boss events (2 minutes before: at :58, :08, :18 minutes)
+        if current_minute in [58, 8, 18]:
+            world_boss_schedule = {
+                0: [58],         # 12:58 AM for 1:00 AM event
+                1: [8],          # 1:08 AM for 1:10 AM event
+                5: [58],         # 5:58 AM for 6:00 AM event
+                6: [8],          # 6:08 AM for 6:10 AM event
+                10: [58],        # 10:58 AM for 11:00 AM event
+                11: [8],         # 11:08 AM for 11:10 AM event
+                15: [58],        # 3:58 PM for 4:00 PM event
+                16: [8, 18],     # 4:08 PM for 4:10 PM, 4:18 PM for 4:20 PM event
+                20: [58],        # 8:58 PM for 9:00 PM event
+                21: [8]          # 9:08 PM for 9:10 PM event
+            }
+            
+            if current_hour in world_boss_schedule and current_minute in world_boss_schedule[current_hour]:
+                # Calculate the actual event time (2 minutes later)
+                event_hour = current_hour
+                event_minute = (current_minute + 2) % 60
+                if current_minute == 58:
+                    event_hour = (current_hour + 1) % 24
+                    event_minute = 0
+                
+                # Convert to 12-hour format
+                if event_hour == 0:
+                    formatted_time = f"12:{event_minute:02d} AM"
+                elif event_hour < 12:
+                    formatted_time = f"{event_hour}:{event_minute:02d} AM"
+                elif event_hour == 12:
+                    formatted_time = f"12:{event_minute:02d} PM"
+                else:
+                    formatted_time = f"{event_hour-12}:{event_minute:02d} PM"
+                
+                # Calculate Manila time for the event
+                lisbon_event = now.replace(hour=event_hour, minute=event_minute, second=0, microsecond=0)
+                manila_event = lisbon_event.astimezone(manila_tz)
+                manila_formatted = manila_event.strftime("%I:%M %p").lstrip('0')
+                
+                # Send 2-minute warning
+                message = f"🐲 World Boss in 2min at {formatted_time} Lisbon / {manila_formatted} Manila! 🐲"
+                log_msg = f"✅ Sent 2-minute World Boss reminder for {formatted_time} Lisbon / {manila_formatted} Manila"
+                
+                await channel.send(message)
+                current_time = now.strftime("%H:%M")
+                utc_now = datetime.now(pytz.UTC)
+                print(f"[{current_time} Lisbon / {utc_now.strftime('%H:%M')} UTC] {log_msg}")
                 
     except discord.Forbidden:
         print("❌ No permission to send messages")
